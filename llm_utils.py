@@ -42,10 +42,24 @@ def prepare_features(data):
     """
     print("Preparing features for prediction...")
 
-    # Create lag features
+# Ensure 'Close' is a Series
+    if isinstance(data['Close'], pd.DataFrame):
+        data['Close'] = data['Close']['desired_column']  # Adjust for your dataset
+
+# Create lag features
     data['Prev_Close'] = data['Close'].shift(1)
+
+# Handle NaN values from shift
+    data['Prev_Close'].fillna(0, inplace=True)
+
+# Ensure numeric types
+    data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
+    data['Prev_Close'] = pd.to_numeric(data['Prev_Close'], errors='coerce')
+
+# Calculate price and percent changes
     data['Price_Change'] = data['Close'] - data['Prev_Close']
-    data['Percent_Change'] = (data['Price_Change'] / data['Prev_Close']) * 100  # Correct
+    data['Percent_Change'] = (data['Price_Change'] / data['Prev_Close']) * 100
+
 
 
     # Drop rows with missing values
