@@ -5,36 +5,46 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 from transformers import pipeline
-import os
-import joblib  # To save and load the model
-
-# Ensure the models folder exists
-if not os.path.exists("models"):
-    os.makedirs("models")
-
+import joblib
 
 def llm_stock_analysis(stock_ticker, processed_data):
     """
     Use a pre-trained LLM to analyze stock data and provide investment insights.
     """
     print("Generating LLM-based analysis...")
-
+    
     # Initialize the Hugging Face pipeline (using GPT-2 as an example)
     model = pipeline("text-generation", model="distilgpt2")
-
+    
     # Create a summary prompt with the stock's key statistics
     latest_close = processed_data['Close'].iloc[-1]
     ma20 = processed_data['MA20'].iloc[-1]
     ma50 = processed_data['MA50'].iloc[-1]
     percent_change = processed_data['Percent Change'].iloc[-1]
 
-    prompt = (f"The latest closing price is {latest_close:.2f}. \n\n"
-              f"The 20-day moving average is {ma20:.2f}, and the 50-day moving average is {ma50:.2f}. \n\n"
-              f"The daily percent change is {percent_change:.2f}%. Based on this information, \n\n")
+    prompt = (f"Provide an investment analysis for {stock_ticker}. The latest closing price is {latest_close:.2f}. "
+              f"The 20-day moving average is {ma20:.2f}, and the 50-day moving average is {ma50:.2f}. "
+              f"The daily percent change is {percent_change:.2f}%. Based on this information, ")
+
     # Generate a response
-    response = model(prompt, max_length=150, num_return_sequences=1)
+    response = model(prompt, max_length=250, num_return_sequences=1)
     return response[0]['generated_text']
 
+
+def save_model(model, file_path):
+    """
+    Save the trained model to a file.
+    """
+    joblib.dump(model, file_path)
+    print(f"Model saved to {file_path}")
+
+def load_model(file_path):
+    """
+    Load a trained model from a file.
+    """
+    model = joblib.load(file_path)
+    print(f"Model loaded from {file_path}")
+    return model
 
 def prepare_features(data):
     """
@@ -45,8 +55,7 @@ def prepare_features(data):
     # Create lag features
     data['Prev_Close'] = data['Close'].shift(1)
     data['Price_Change'] = data['Close'] - data['Prev_Close']
-    data['Percent_Change'] = (data['Price_Change'] / data['Prev_Close']) * 100  # Correct
-
+    data['Percent_Change'] = (data['Price_Change'] / data['Prev_Close']) * 100
 
     # Drop rows with missing values
     data.dropna(inplace=True)
@@ -63,18 +72,13 @@ def prepare_features(data):
     print("Features prepared successfully.")
     return X_train, X_test, y_train, y_test
 
-
-def train_predictive_model(X_train, y_train, X_test, y_test, model_path):
+def train_predictive_model(X_train, y_train, X_test, y_test):
     """
     Train a Random Forest model to predict the next day's stock price.
     """
     print("Training the predictive model...")
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-
-    # Save the trained model
-    joblib.dump(model, model_path)
-    print(f"Model saved to {model_path}")
 
     # Predict on the test set
     predictions = model.predict(X_test)
@@ -85,15 +89,6 @@ def train_predictive_model(X_train, y_train, X_test, y_test, model_path):
 
     return model
 
-
-def load_model(model_path):
-    """
-    Load a trained model from the models folder.
-    """
-    print(f"Loading model from {model_path}...")
-    return joblib.load(model_path)
-
-
 def predict_next_day(model, recent_data):
     """
     Predict the next day's stock price using the trained model and recent data.
@@ -102,19 +97,6 @@ def predict_next_day(model, recent_data):
     next_day_features = recent_data[['MA20', 'MA50', 'Prev_Close', 'Price_Change', 'Percent_Change']].iloc[-1].values.reshape(1, -1)
     next_day_prediction = model.predict(next_day_features)[0]
     return next_day_prediction
-
-def make_recommendation(current_price, predicted_price):
-    """
-    Recommend Buy, Hold, or Sell based on the current price and predicted price.
-    """
-    change_percentage = ((predicted_price - current_price) / current_price) * 100
-
-    if change_percentage > 1:
-        return "Buy", change_percentage
-    elif change_percentage < -1:
-        return "Sell", change_percentage
-    else:
-        return "Hold", change_percentage
 
 
 def fetch_stock_data(ticker, years):
@@ -127,7 +109,6 @@ def fetch_stock_data(ticker, years):
     data = yf.download(ticker, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
     print(f"Data for {ticker} fetched successfully.")
     return data
-
 
 def process_stock_data(data):
     """
@@ -142,7 +123,6 @@ def process_stock_data(data):
     print("Data processed successfully.")
     return data
 
-
 def analyze_stock_data(data):
     """
     Analyze the processed stock data and print key statistics and insights.
@@ -156,14 +136,10 @@ def analyze_stock_data(data):
     print(f"20-day Moving Average: {data['MA20'].iloc[-1]:.2f}")
     print(f"50-day Moving Average: {data['MA50'].iloc[-1]:.2f}")
 
-
 if __name__ == "__main__":
     # Take input from the user
     ticker = input("Enter the stock ticker (e.g., AAPL for Apple): ").strip().upper()
     years = int(input("Enter the duration in years to analyze the stock data: ").strip())
-
-    # File to save the trained model
-    model_path = os.path.join("models", f"{ticker}_model.pkl")
 
     # Fetch and process stock data
     stock_data = fetch_stock_data(ticker, years)
@@ -173,10 +149,7 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = prepare_features(processed_data)
 
     # Train the prediction model
-    if not os.path.exists(model_path):
-        prediction_model = train_predictive_model(X_train, y_train, X_test, y_test, model_path)
-    else:
-        prediction_model = load_model(model_path)
+    prediction_model = train_predictive_model(X_train, y_train, X_test, y_test)
 
     # Predict the next day's stock price
     next_day_prediction = predict_next_day(prediction_model, processed_data)
@@ -189,3 +162,6 @@ if __name__ == "__main__":
     llm_analysis = llm_stock_analysis(ticker, processed_data)
     print("\n--- LLM Investment Analysis ---")
     print(llm_analysis)
+
+
+
