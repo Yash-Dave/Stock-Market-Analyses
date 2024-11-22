@@ -56,6 +56,8 @@ if st.button("Analyze Stock"):
         with st.expander("Investment Analysis"):
             st.markdown(llm_analysis)
 
+        st.write("Processed DataFrame Preview")
+        st.dataframe(data.head())
         # Display stock data
         st.subheader(f"Stock Data for {ticker}")
         st.dataframe(processed_data)
