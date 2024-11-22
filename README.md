@@ -1,4 +1,4 @@
-Stock Price Analysis and Prediction
+# Stock Price Analysis and Prediction
 
 This project integrates data science, machine learning, and natural language processing (NLP) to analyze and predict stock prices. It provides a comprehensive toolkit for users to understand market trends, predict future stock prices, and make informed investment decisions.
 
