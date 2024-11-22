@@ -52,10 +52,12 @@ def prepare_features(data):
     """
     print("Preparing features for prediction...")
 
-    # Create lag features
-    data['Prev_Close'] = data['Close'].shift(1)
-    data['Price_Change'] = data['Close'] - data['Prev_Close']
-    data['Percent_Change'] = (data['Price_Change'] / data['Prev_Close']) * 100
+# Alternative approach
+    data = data.assign(
+    Prev_Close=data['Close'].shift(1),
+    Price_Change=lambda x: (x['Close'] - x['Prev_Close']),
+    Percent_Change=lambda x: (x['Price_Change'] / x['Prev_Close']) * 100
+    )
 
     # Drop rows with missing values
     data.dropna(inplace=True)
